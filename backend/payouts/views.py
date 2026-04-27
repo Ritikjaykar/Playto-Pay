@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404
+from django.conf import settings
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -14,6 +15,7 @@ from .serializers import (
     PayoutSerializer,
 )
 from .services import PayoutService
+from .tasks import process_pending_payouts, retry_stuck_payouts
 
 
 def merchant_from_request(request):
@@ -70,3 +72,18 @@ class PayoutListCreateView(ApiErrorMixin, APIView):
             idempotency_key=request.headers.get("Idempotency-Key"),
         )
         return Response(body, status=response_status)
+
+
+class ProcessPayoutJobsView(APIView):
+    authentication_classes = []
+    permission_classes = []
+
+    def post(self, request):
+        expected_token = settings.JOB_RUN_TOKEN
+        provided_token = request.headers.get("X-Job-Token")
+        if not expected_token or provided_token != expected_token:
+            return Response({"detail": "Invalid job token"}, status=status.HTTP_403_FORBIDDEN)
+
+        process_pending_payouts.run()
+        retry_stuck_payouts.run()
+        return Response({"detail": "Processed payout jobs"})

@@ -93,6 +93,7 @@ REST_FRAMEWORK = {
 
 CELERY_BROKER_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = CELERY_BROKER_URL
+JOB_RUN_TOKEN = os.getenv("JOB_RUN_TOKEN", "")
 CELERY_BEAT_SCHEDULE = {
     "process-pending-payouts": {
         "task": "payouts.tasks.process_pending_payouts",
